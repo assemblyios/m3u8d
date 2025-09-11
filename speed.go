@@ -2,12 +2,13 @@ package m3u8d
 
 import (
 	"fmt"
-	"github.com/orestonce/m3u8d/mformat"
 	"io"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/orestonce/m3u8d/mformat"
 )
 
 type SpeedStatus struct {
@@ -72,19 +73,41 @@ func (this *SpeedStatus) DrawProgressBar(total int, current int) {
 	if total == 0 {
 		return
 	}
-	proportion := float32(current) / float32(total)
 
 	this.Locker.Lock()
+
+	// 提前判断是否需要绘制，避免不必要的计算
+	if !this.ProgressBarShow {
+		this.Locker.Unlock()
+		return
+	}
+
+	proportion := float32(current) / float32(total)
 	this.progressPercent = int(proportion * 100)
 	title := this.progressBarTitle
-	if this.ProgressBarShow {
-		if this.lastDrawProgress.IsZero() || time.Now().Sub(this.lastDrawProgress).Milliseconds() > 100 {
-			width := 50
-			pos := int(proportion * float32(width))
-			fmt.Printf(title+" %s%*s %6.2f%%\r", strings.Repeat("■", pos), width-pos, "", proportion*100)
-		}
+	shouldDraw := this.lastDrawProgress.IsZero() || time.Since(this.lastDrawProgress) > 100*time.Millisecond
+
+	if shouldDraw {
+		this.lastDrawProgress = time.Now()
 	}
+
 	this.Locker.Unlock()
+
+	// 绘制进度条和速度信息
+	if shouldDraw {
+		width := 50
+		pos := int(proportion * float32(width))
+		percent := proportion * 100
+
+		// 获取当前速度信息
+		speed := this.SpeedRecent5sGetAndUpdate()
+		speedText := ""
+		if speed.BytePerSecondText != "" {
+			speedText = " " + speed.BytePerSecondText
+		}
+
+		fmt.Printf("%s %s%*s %6.2f%%%s\r", title, strings.Repeat("■", pos), width-pos, "", percent, speedText)
+	}
 }
 
 func (this *SpeedStatus) SpeedResetTotalBlockCount(count int) {
