@@ -296,7 +296,7 @@ func init() {
 	downloadCmd.Flags().StringVarP(&gRunReq.SkipTsExpr, "SkipTsExpr", "", "", "跳过ts信息，ts编号从1开始，例如: 1,92-100 表示跳过第1号ts、跳过92到100号ts")
 	downloadCmd.Flags().StringVarP(&gRunReq.SetProxy, "SetProxy", "", "", "代理设置, http://127.0.0.1:8080 socks5://127.0.0.1:1089")
 	downloadCmd.Flags().BoolVarP(&gRunReq.SkipRemoveTs, "SkipRemoveTs", "", false, "不删除下载的ts文件")
-	downloadCmd.Flags().IntVarP(&gRunReq.ThreadCount, "ThreadCount", "", 8, "下载线程数")
+	downloadCmd.Flags().IntVarP(&gRunReq.ThreadCount, "ThreadCount", "t", 16, "下载线程数")
 	downloadCmd.Flags().BoolVarP(&gRunReq.SkipMergeTs, "SkipMergeTs", "", false, "不合并ts为mp4")
 	downloadCmd.Flags().BoolVarP(&gRunReq.DebugLog, "DebugLog", "", false, "调试日志")
 	downloadCmd.Flags().StringVarP(&gRunReq.TsTempDir, "TsTempDir", "", "", "临时ts文件目录")
