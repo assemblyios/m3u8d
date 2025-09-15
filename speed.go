@@ -95,7 +95,7 @@ func (this *SpeedStatus) DrawProgressBar(total int, current int) {
 
 	// 绘制进度条和速度信息
 	if shouldDraw {
-		width := 50
+		width := 15
 		pos := int(proportion * float32(width))
 		percent := proportion * 100
 

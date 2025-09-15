@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/orestonce/m3u8d/mformat"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,6 +16,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/orestonce/m3u8d/mformat"
 )
 
 const logFileName = `skip.txt`
@@ -293,7 +294,7 @@ func (this *DownloadEnv) runDownload(req StartDownload_Req, skipInfo SkipTsInfo)
 			return
 		}
 	}
-	this.status.SetProgressBarTitle("[5/5]合并ts为mp4")
+	this.status.SetProgressBarTitle("[5/5]合并ts")
 	err = MergeTsFileListToSingleMp4(MergeTsFileListToSingleMp4_Req{
 		TsFileList: tsFileList,
 		OutputMp4:  tmpOutputName,
