@@ -1,3 +1,7 @@
-https://example.com/video1.m3u8    video1
-https://example.com/video2.m3u8   video2
-https://example.com/video3.m3u8
+# https://example.com/video1.m3u8    video1
+# https://example.com/video2.m3u8   video2
+# https://example.com/video3.m3u8
+
+
+https://vip.ffzy-video.com/20250902/25579_86f77fb5/index.m3u8  video1
+https://vip.ffzy-video.com/20250902/25580_b06cd72e/index.m3u8  video2

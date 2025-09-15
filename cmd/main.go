@@ -71,8 +71,9 @@ var curlCmd = &cobra.Command{
 
 // 批量下载相关变量
 var gBatchReq struct {
-	InputFile string
-	SaveDir   string
+	InputFile   string
+	SaveDir     string
+	ThreadCount int
 }
 
 var batchCmd = &cobra.Command{
@@ -83,12 +84,12 @@ var batchCmd = &cobra.Command{
 			cmd.Help()
 			return
 		}
-		batchDownloadFromFile(gBatchReq.InputFile, gBatchReq.SaveDir)
+		batchDownloadFromFile(gBatchReq.InputFile, gBatchReq.SaveDir, gBatchReq.ThreadCount)
 	},
 }
 
 // 批量下载功能
-func batchDownloadFromFile(inputFile, saveDir string) {
+func batchDownloadFromFile(inputFile, saveDir string, threadCount int) {
 	// 读取txt文件
 	file, err := os.Open(inputFile)
 	if err != nil {
@@ -155,7 +156,7 @@ func batchDownloadFromFile(inputFile, saveDir string) {
 			SetProxy:          gRunReq.SetProxy,
 			SkipRemoveTs:      gRunReq.SkipRemoveTs,
 			ProgressBarShow:   true,
-			ThreadCount:       gRunReq.ThreadCount,
+			ThreadCount:       threadCount,
 			SkipMergeTs:       gRunReq.SkipMergeTs,
 			DebugLog:          gRunReq.DebugLog,
 			TsTempDir:         gRunReq.TsTempDir,
@@ -296,7 +297,7 @@ func init() {
 	downloadCmd.Flags().StringVarP(&gRunReq.SkipTsExpr, "SkipTsExpr", "", "", "跳过ts信息，ts编号从1开始，例如: 1,92-100 表示跳过第1号ts、跳过92到100号ts")
 	downloadCmd.Flags().StringVarP(&gRunReq.SetProxy, "SetProxy", "", "", "代理设置, http://127.0.0.1:8080 socks5://127.0.0.1:1089")
 	downloadCmd.Flags().BoolVarP(&gRunReq.SkipRemoveTs, "SkipRemoveTs", "", false, "不删除下载的ts文件")
-	downloadCmd.Flags().IntVarP(&gRunReq.ThreadCount, "ThreadCount", "t", 16, "下载线程数")
+	downloadCmd.Flags().IntVarP(&gRunReq.ThreadCount, "ThreadCount", "t", 1000, "下载线程数")
 	downloadCmd.Flags().BoolVarP(&gRunReq.SkipMergeTs, "SkipMergeTs", "", false, "不合并ts为mp4")
 	downloadCmd.Flags().BoolVarP(&gRunReq.DebugLog, "DebugLog", "", false, "调试日志")
 	downloadCmd.Flags().StringVarP(&gRunReq.TsTempDir, "TsTempDir", "", "", "临时ts文件目录")
@@ -307,6 +308,7 @@ func init() {
 	rootCmd.AddCommand(curlCmd)
 	batchCmd.Flags().StringVarP(&gBatchReq.InputFile, "InputFile", "i", "", "输入包含URL的txt文件路径")
 	batchCmd.Flags().StringVarP(&gBatchReq.SaveDir, "SaveDir", "d", "", "批量下载保存路径(默认为当前工作目录)")
+	batchCmd.Flags().IntVarP(&gBatchReq.ThreadCount, "ThreadCount", "t", 1000, "下载线程数")
 	rootCmd.AddCommand(batchCmd)
 	mergeCmd.Flags().StringVarP(&gMergeReq.InputTsDir, "InputTsDir", "", "", "存放ts文件的目录(默认为当前工作目录)")
 	mergeCmd.Flags().StringVarP(&gMergeReq.OutputMp4Name, "OutputMp4Name", "", "", "输出mp4文件名(默认为输入ts文件的目录下的all.mp4)")
