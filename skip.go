@@ -1,18 +1,20 @@
 package m3u8d
 
 import (
-	"bytes"
-	"context"
-	"errors"
-	"fmt"
-	"github.com/orestonce/m3u8d/mformat"
-	"math"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
+    "bytes"
+    "context"
+    "errors"
+    "fmt"
+    "github.com/orestonce/m3u8d/mformat"
+    "math"
+    "os"
+    "path/filepath"
+    "regexp"
+    "strconv"
+    "strings"
+    "time"
+    "runtime"
+    "sync"
 )
 
 const SkipTimeSecEnd = 99 * 60 * 60
@@ -278,32 +280,75 @@ func (this *DownloadEnv) removeSkipList(tsSaveDir string, list []mformat.TsInfo)
 	this.status.SpeedResetBytes()
 	this.status.SpeedResetTotalBlockCount(len(list))
 
-	for _, one := range list {
-		if this.GetIsCancel() {
-			return resp, errors.New("用户取消")
-		}
-		this.status.SpeedAdd1Block(time.Now(), 0)
-		if one.SkipByHttpCode {
-			resp.skipByHttpCodeCount++
-			if skipByHttpCodeBuffer.Len() == 0 {
-				skipByHttpCodeBuffer.WriteString("skipByHttpCode\n")
-			}
-			fmt.Fprintf(&skipByHttpCodeBuffer, "filename=%v,url=%v，http.code=%v\n", one.Name, one.Url, one.HttpCode)
-			continue
-		}
-		vInfo := GetTsVideoInfo(filepath.Join(tsSaveDir, one.Name))
-		if inputVideoInfo == nil {
-			inputVideoInfo = &vInfo
-		}
-		if vInfo.Fps == inputVideoInfo.Fps && vInfo.Width == inputVideoInfo.Width && vInfo.Height == inputVideoInfo.Height {
-			resp.mergeTsList = append(resp.mergeTsList, one)
-		} else {
-			if skipByResolutionFpsBuffer.Len() == 0 {
-				skipByResolutionFpsBuffer.WriteString("skipByResolutionFps\n")
-			}
-			fmt.Fprintf(&skipByResolutionFpsBuffer, "filename=%v,url=%v,resolution=%vx%v,fps=%v\n", one.Name, one.Url, vInfo.Width, vInfo.Height, vInfo.Fps)
-		}
-	}
+    // 使用并行 worker pool 处理 TS 文件信息，提升速度
+    workerCount := runtime.NumCPU()
+    if workerCount < 2 {
+        workerCount = 2
+    }
+
+    type result struct {
+        tsInfo mformat.TsInfo
+        vInfo  TsVideoInfo
+    }
+
+    tsCh := make(chan mformat.TsInfo)
+    resCh := make(chan result)
+    var wg sync.WaitGroup
+
+    // 启动 worker
+    for i := 0; i < workerCount; i++ {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            for one := range tsCh {
+                if one.SkipByHttpCode {
+                    resCh <- result{tsInfo: one}
+                    continue
+                }
+                v := GetTsVideoInfo(filepath.Join(tsSaveDir, one.Name))
+                resCh <- result{tsInfo: one, vInfo: v}
+            }
+        }()
+    }
+
+    // 发送任务
+    go func() {
+        for _, one := range list {
+            tsCh <- one
+        }
+        close(tsCh)
+    }()
+
+    // 收集结果
+    go func() {
+        wg.Wait()
+        close(resCh)
+    }()
+
+    for res := range resCh {
+        this.status.SpeedAdd1Block(time.Now(), 0)
+        if res.tsInfo.SkipByHttpCode {
+            resp.skipByHttpCodeCount++
+            if skipByHttpCodeBuffer.Len() == 0 {
+                skipByHttpCodeBuffer.WriteString("skipByHttpCode\n")
+            }
+            fmt.Fprintf(&skipByHttpCodeBuffer, "filename=%v,url=%v，http.code=%v\n", res.tsInfo.Name, res.tsInfo.Url, res.tsInfo.HttpCode)
+            continue
+        }
+        vInfo := res.vInfo
+        if inputVideoInfo == nil {
+            tmp := vInfo
+            inputVideoInfo = &tmp
+        }
+        if vInfo.Fps == inputVideoInfo.Fps && vInfo.Width == inputVideoInfo.Width && vInfo.Height == inputVideoInfo.Height {
+            resp.mergeTsList = append(resp.mergeTsList, res.tsInfo)
+        } else {
+            if skipByResolutionFpsBuffer.Len() == 0 {
+                skipByResolutionFpsBuffer.WriteString("skipByResolutionFps\n")
+            }
+            fmt.Fprintf(&skipByResolutionFpsBuffer, "filename=%v,url=%v,resolution=%vx%v,fps=%v\n", res.tsInfo.Name, res.tsInfo.Url, vInfo.Width, vInfo.Height, vInfo.Fps)
+        }
+    }
 	if skipByHttpCodeBuffer.Len() > 0 || skipByResolutionFpsBuffer.Len() > 0 {
 		resp.skipLogFileName = filepath.Join(tsSaveDir, logFileName)
 		resp.skipLogContent = append(skipByHttpCodeBuffer.Bytes(), skipByResolutionFpsBuffer.Bytes()...)
